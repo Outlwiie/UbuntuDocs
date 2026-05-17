@@ -1,0 +1,10 @@
+#reqirements.txt
+pymupdf
+sentence-transformers
+chromadb
+python-dotenv
+fastapi
+uvicorn[standard]
+anthropic
+requests 
+pytest
