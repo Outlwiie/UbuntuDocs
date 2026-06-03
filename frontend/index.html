@@ -1,1 +1,67 @@
-# index.html
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>UbuntuDocs</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-icon">◈</span>
+        <div>
+          <div class="brand-name">UbuntuDocs</div>
+          <div class="brand-sub">"I am because of what I've read."</div>
+        </div>
+      </div>
+
+      <div class="section-label">Your Documents</div>
+      <ul class="doc-list" id="docList">
+        <li class="doc-empty">No documents yet</li>
+      </ul>
+
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" accept=".pdf" hidden />
+        <span class="upload-icon">⊕</span>
+        <span class="upload-text">Drop a PDF here<br />or click to upload</span>
+        <div class="upload-status" id="uploadStatus"></div>
+      </div>
+    </aside>
+
+    <!-- Main chat area -->
+    <main class="main">
+      <div class="chat-wrap">
+        <div class="messages" id="messages">
+          <div class="welcome">
+            <div class="welcome-icon">◈</div>
+            <h1>Ask your documents anything.</h1>
+            <p>
+              Upload a PDF on the left, then ask a question below.<br />UbuntuDocs
+              finds the answer — grounded in your files.
+            </p>
+          </div>
+        </div>
+
+        <div class="input-bar">
+          <textarea
+            id="questionInput"
+            placeholder="Ask a question about your documents..."
+            rows="1"
+          ></textarea>
+          <button id="sendBtn" class="send-btn">
+            <span>Ask</span>
+            <span class="send-arrow">↗</span>
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

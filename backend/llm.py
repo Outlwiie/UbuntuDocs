@@ -1,13 +1,17 @@
-# LLM call + prompt building
-import os
 import requests
-from dotenv import load_dotenv
 
-load_dotenv()
-
-#_client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 def ask(question: str, chunks: list[dict]) -> str:
+    """
+    Build a prompt from retrieved chunks and send to Ollama.
+
+    Args:
+        question: the user's natural language question
+        chunks:   list of {"text": str, "filename": str} from retrieval.py
+
+    Returns:
+        Llama's answer as a string.
+    """
     if not chunks:
         return "I couldn't find any relevant information in your documents."
 
