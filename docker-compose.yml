@@ -1,1 +1,21 @@
-# docker-compose.yml
+services:
+
+  backend:
+    build: .
+    container_name: ubuntudocs
+    ports:
+      - "8000:8000"       # host:container — visit http://localhost:8000
+    volumes:
+      - ./chroma_db:/app/chroma_db   # persist vectors outside the container
+    environment:
+      # Ollama runs on your Windows host, not inside Docker.
+      # host.docker.internal is a special DNS name Docker provides
+      # on Windows/Mac to reach the host machine from inside a container.
+      OLLAMA_URL: http://host.docker.internal:11434/api/generate
+      CHROMA_PATH: /app/chroma_db
+      CHUNK_SIZE: 500
+      CHUNK_OVERLAP: 50
+      TOP_K: 5
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # needed on Linux; harmless on Windows
+    restart: unless-stopped

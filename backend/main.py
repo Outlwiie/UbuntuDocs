@@ -43,7 +43,7 @@ app.add_middleware(
 )
 
 # Serve the frontend
-app.mount("/static", StaticFiles(directory="../frontend"), name="static")
+app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
 # ── Request / Response models ──────────────────────────────────────────────────
 
@@ -59,7 +59,7 @@ class QueryResponse(BaseModel):
 @app.get("/")
 def root():
     """Serve the frontend."""
-    return FileResponse("../frontend/index.html")
+    return FileResponse("frontend/index.html")
 
 
 @app.get("/health")

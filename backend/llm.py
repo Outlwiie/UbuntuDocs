@@ -1,9 +1,10 @@
+import os
 import requests
 import logging 
 
 logger = logging.getLogger(__name__)
 
-OLLAMA_URL   = "http://localhost:11434/api/generate"
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
 OLLAMA_MODEL = "llama3.2"
 
 
