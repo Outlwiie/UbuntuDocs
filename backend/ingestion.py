@@ -1,11 +1,15 @@
 import os
 import uuid
+import logging
 import fitz  # PyMuPDF
 import chromadb
 from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
 
 load_dotenv()
+
+
+logger = logging.getLogger(__name__)
 
 #Config
 
@@ -46,10 +50,28 @@ def _chunk_text(text: str) -> list[str]:
 
     return chunks
 
+def _filename_exists(filename: str) -> bool:
+    """Check if a document with this filename is already ingested."""
+    results = _collection.get(where={"filename": {"$eq": filename}})
+    return len(results["ids"]) > 0
+
 #Public API 
 
 def ingest_pdf(file_path: str, filename: str) -> dict:
     """Extract -> chunk -> embed -> store. Returns a summary dict."""
+
+    if _filename_exists(filename):
+        raise ValueError(f"'{filename}' has already been ingested. Delete it first to re-upload.")
+ 
+    logger.info(f"Ingesting '{filename}'...")
+ 
+    text   = _extract_text(file_path)
+    chunks = _chunk_text(text)
+ 
+    logger.info(f"'{filename}' split into {len(chunks)} chunks. Embedding...")
+ 
+    embeddings = _embedder.encode(chunks, show_progress_bar=False).tolist()
+    
     document_id = str(uuid.uuid4())
 
     text   = _extract_text(file_path)
@@ -77,6 +99,7 @@ def delete_document(document_id: str) -> int:
     ids     = results["ids"]
     if ids:
         _collection.delete(ids=ids)
+        logger.info(f"Deleted {len(ids)} chunks for document {document_id}.")
     return len(ids)
 
 

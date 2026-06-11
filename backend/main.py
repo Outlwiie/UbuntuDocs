@@ -1,5 +1,6 @@
 # FastAPI app
 import os
+import logging
 import shutil
 import tempfile
 from fastapi import FastAPI, UploadFile, File, HTTPException
@@ -11,6 +12,19 @@ from pydantic import BaseModel
 from ingestion import ingest_pdf, delete_document, list_documents
 from retrieval import retrieve
 from llm import ask
+
+# ── Logging setup ──────────────────────────────────────────────────────────────
+ 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+# ── Config ─────────────────────────────────────────────────────────────────────
+ 
+MAX_FILE_SIZE_MB = 20
+MAX_QUESTION_LEN = 500
 
 # ── App setup ──────────────────────────────────────────────────────────────────
 
@@ -56,45 +70,74 @@ def health():
 
 @app.post("/upload")
 async def upload(file: UploadFile = File(...)):
-    """
-    Accept a PDF upload, ingest it, and return a summary.
-    """
+    # Validate file type
     if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported.")
-
-    # Save the upload to a temp file so ingestion can read it
+ 
+    # Validate file size
+    contents = await file.read()
+    size_mb  = len(contents) / (1024 * 1024)
+ 
+    if size_mb > MAX_FILE_SIZE_MB:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large ({size_mb:.1f}MB). Maximum allowed size is {MAX_FILE_SIZE_MB}MB."
+        )
+ 
+    logger.info(f"Upload received: '{file.filename}' ({size_mb:.1f}MB)")
+ 
+    # Write to temp file for ingestion
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-        shutil.copyfileobj(file.file, tmp)
+        tmp.write(contents)
         tmp_path = tmp.name
-
+ 
     try:
         result = ingest_pdf(tmp_path, file.filename)
+    except ValueError as e:
+        # Duplicate file or no extractable text
+        raise HTTPException(status_code=409, detail=str(e))
+    except Exception as e:
+        logger.error(f"Ingestion failed for '{file.filename}': {e}")
+        raise HTTPException(status_code=500, detail="Ingestion failed. Check server logs.")
     finally:
-        os.remove(tmp_path)  # clean up temp file
-
+        os.remove(tmp_path)
+ 
     return result
-
 
 @app.post("/query", response_model=QueryResponse)
 def query(body: QueryRequest):
-    """
-    Retrieve relevant chunks and generate an answer.
-    """
-    if not body.question.strip():
+    question = body.question.strip()
+ 
+    # Validate question
+    if not question:
         raise HTTPException(status_code=400, detail="Question cannot be empty.")
-
-    chunks  = retrieve(body.question)
-    answer  = ask(body.question, chunks)
-    sources = list({c["filename"] for c in chunks})  # deduplicated source list
-
+ 
+    if len(question) > MAX_QUESTION_LEN:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Question too long. Maximum is {MAX_QUESTION_LEN} characters."
+        )
+ 
+    logger.info(f"Query received: '{question[:60]}'")
+ 
+    try:
+        chunks = retrieve(question)
+        answer = ask(question, chunks)
+    except ConnectionError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except TimeoutError as e:
+        raise HTTPException(status_code=504, detail=str(e))
+    except Exception as e:
+        logger.error(f"Query failed: {e}")
+        raise HTTPException(status_code=500, detail="Query failed. Check server logs.")
+ 
+    sources = list({c["filename"] for c in chunks})
     return QueryResponse(answer=answer, sources=sources)
-
-
+ 
+ 
 @app.get("/documents")
 def documents():
-    """List all ingested documents."""
     return list_documents()
-
 
 @app.delete("/documents/{document_id}")
 def delete(document_id: str):
