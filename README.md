@@ -1,88 +1,152 @@
-# README.md
-UbuntuDocs
+# UbuntuDocs
 
-"I am because of what I've read."
+> *"I am because of what I've read."*
 
-A Retrieval-Augmented Generation (RAG) system that lets you upload PDF documents and query them using natural language. Ask a question, UbuntuDocs finds the most relevant passages across your documents and uses an LLM to generate a grounded answer — with source citations.
+UbuntuDocs lets you upload PDF documents and have a conversation with them. Ask a question in plain English, and it finds the most relevant parts of your documents and gives you a grounded answer — telling you exactly which file it came from.
 
-Tech Stack
-ComponentChoicePDF parsingPyMuPDF (fitz)ChunkingLangChain RecursiveCharacterTextSplitterEmbedding modelall-MiniLM-L6-v2 (sentence-transformers, runs locally)Vector databaseChromaDB (persistent, no external setup)LLMClaude API or Ollama (llama3 / mistral)BackendFastAPI + UvicornFrontendHTML / CSS / Vanilla JSTestingpytest + unittest.mockContainerisationDocker + docker-compose
+No cloud storage. No third-party indexing. Everything runs on your machine.
 
-Project Structure
-ubuntudocs/
-├── backend/
-│   ├── main.py             # FastAPI app — routes and app config
-│   ├── ingestion.py        # PDF parsing, chunking, embedding
-│   ├── retrieval.py        # ChromaDB queries and similarity search
-│   ├── llm.py              # Prompt building and LLM API calls
-│   └── requirements.txt
-├── frontend/
-│   ├── index.html          # Upload form + chat interface
-│   ├── style.css
-│   └── app.js              # Fetch calls to FastAPI
-├── tests/
-│   ├── __init__.py
-│   ├── test_ingestion.py   # Chunk size, overlap, metadata correctness
-│   ├── test_retrieval.py   # Top-k retrieval, empty collection handling
-│   └── test_llm.py         # Prompt construction, response parsing
-├── docker-compose.yml
-├── .env.example
-├── .gitignore
-└── README.md
+---
 
-Getting Started
-Prerequisites
+## What it does
 
-Python 3.11+
-Docker and docker-compose
-An Anthropic API key — or Ollama installed locally for a free option
+You upload a PDF. UbuntuDocs breaks it into chunks, converts each chunk into a vector (a mathematical representation of its meaning), and stores everything locally. When you ask a question, it finds the chunks that are most semantically similar to your question and passes them to an LLM to generate a real answer — not just a keyword match.
 
-1. Clone and configure
-bashgit clone https://github.com/yourname/ubuntudocs.git
+This pattern is called RAG (Retrieval-Augmented Generation). It's how most production document AI systems work.
+
+---
+
+## Built with
+
+- **FastAPI** — the backend API
+- **ChromaDB** — stores and searches the document vectors locally
+- **sentence-transformers** (`all-MiniLM-L6-v2`) — turns text into vectors, runs fully offline
+- **PyMuPDF** — extracts text from PDFs
+- **Ollama** (llama3.2) — the local LLM that generates answers, no API key needed
+- **HTML / CSS / Vanilla JS** — the frontend, no framework
+- **Docker** — so anyone can run it with one command
+- **pytest** — 20 tests covering ingestion, retrieval, and the LLM layer
+
+---
+
+## Getting started
+
+### Option 1 — Docker (recommended)
+
+Make sure Docker Desktop and Ollama are running, then:
+
+```bash
+git clone https://github.com/yourname/ubuntudocs.git
 cd ubuntudocs
-cp .env.example .env
-Open .env and fill in your values:
-envANTHROPIC_API_KEY=your_key_here
-LLM_PROVIDER=anthropic         # or ollama
-OLLAMA_MODEL=llama3            # only needed if using ollama
-CHUNK_SIZE=500
-CHUNK_OVERLAP=50
-TOP_K=5
-CHROMA_PATH=./chroma_db
-2. Run with Docker
-bashdocker-compose up --build
-App runs at http://localhost:8000
-3. Run locally (without Docker)
-bashcd backend
+docker-compose up --build
+```
+
+Open `http://localhost:8000` and you're good to go.
+
+### Option 2 — Run locally
+
+```bash
+git clone https://github.com/yourname/ubuntudocs.git
+cd ubuntudocs
+
+cp .env.example .env       # fill in your values
+
+cd backend
 pip install -r requirements.txt
 uvicorn main:app --reload
+```
 
-How It Works
-Ingestion pipeline
-When you upload a PDF, UbuntuDocs:
+Open `http://localhost:8000`.
 
-Extracts raw text page by page using PyMuPDF
-Splits the text into overlapping chunks (500 tokens, 50 token overlap)
-Embeds each chunk into a 384-dimensional vector using all-MiniLM-L6-v2
-Stores the vectors and metadata (filename, page number) in ChromaDB
+### Prerequisites
 
-Query pipeline
-When you ask a question:
+- Python 3.11+
+- Docker Desktop (for Option 1)
+- [Ollama](https://ollama.com) with `llama3.2` pulled — run `ollama pull llama3.2`
 
-The question is embedded using the same model
-ChromaDB returns the top 5 most semantically similar chunks
-Those chunks are inserted into a prompt as context
-The LLM generates an answer grounded in that context
-The answer is returned with source citations (filename + page number)
+---
 
+## Project structure
 
-API Endpoints
-MethodEndpointDescriptionPOST/uploadUpload a PDF. Returns document ID and chunk count.POST/queryAsk a question. Returns answer and source citations.GET/documentsList all ingested documents.DELETE/documents/{id}Remove a document and its vectors.GET/healthHealth check.
+```
+ubuntudocs/
+├── backend/
+│   ├── main.py          # FastAPI routes
+│   ├── ingestion.py     # PDF parsing, chunking, embedding
+│   ├── retrieval.py     # Vector similarity search
+│   ├── llm.py           # Prompt building and LLM calls
+│   └── requirements.txt
+├── frontend/
+│   ├── index.html
+│   ├── style.css
+│   └── app.js
+├── tests/
+│   ├── test_ingestion.py
+│   ├── test_retrieval.py
+│   └── test_llm.py
+├── Dockerfile
+├── docker-compose.yml
+├── .env.example
+└── README.md
+```
 
-Running Tests
-bashpytest tests/ -v
-FileWhat it coverstest_ingestion.pyChunks respect size limit, overlap is applied, metadata is attached to every chunktest_retrieval.pyTop-k returns correct count, empty collection handled gracefully (ChromaDB mocked)test_llm.pyContext appears in prompt, question appears in prompt, API errors handled (LLM client mocked)
+---
 
-Configuration
-All config lives in .env. Never commit this file — only commit .env.example.
-VariableDefaultDescriptionANTHROPIC_API_KEY—Your Anthropic API keyLLM_PROVIDERanthropicanthropic or ollamaOLLAMA_MODELllama3Model name if using OllamaCHUNK_SIZE500Max tokens per chunkCHUNK_OVERLAP50Token overlap between chunksTOP_K5Chunks retrieved per queryCHROMA_PATH./chroma_dbChromaDB persistence path
+## How it works
+
+**When you upload a PDF:**
+
+1. PyMuPDF extracts all the text
+2. The text is split into 500-word chunks with a 50-word overlap between them
+3. Each chunk is converted into a 384-dimensional vector using a local embedding model
+4. The vectors and metadata are saved to ChromaDB on disk
+
+**When you ask a question:**
+
+1. Your question gets converted into a vector using the same model
+2. ChromaDB finds the 5 most similar chunks
+3. Those chunks get passed to llama3.2 as context
+4. The LLM generates an answer grounded in that context
+5. You get the answer plus a citation showing which file it came from
+
+---
+
+## Running the tests
+
+```bash
+pytest tests/ -v
+```
+
+20 tests across three files. ChromaDB and the LLM are mocked so tests run fast without any external dependencies.
+
+---
+
+## Configuration
+
+Copy `.env.example` to `.env` and adjust as needed. Never commit `.env` — it's in `.gitignore`.
+
+| Variable | Default | What it does |
+|---|---|---|
+| `OLLAMA_URL` | `http://localhost:11434/api/generate` | Where Ollama is running |
+| `CHUNK_SIZE` | `500` | Max words per chunk |
+| `CHUNK_OVERLAP` | `50` | Overlap between chunks |
+| `TOP_K` | `5` | How many chunks to retrieve per question |
+| `CHROMA_PATH` | `./chroma_db` | Where ChromaDB saves its data |
+
+---
+
+## API
+
+| Method | Endpoint | What it does |
+|---|---|---|
+| `POST` | `/upload` | Upload a PDF |
+| `POST` | `/query` | Ask a question |
+| `GET` | `/documents` | List ingested documents |
+| `DELETE` | `/documents/{id}` | Remove a document |
+| `GET` | `/health` | Check the server is up |
+
+---
+
+## Licence
+
+MIT
